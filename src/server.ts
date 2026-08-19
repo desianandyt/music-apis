@@ -1,8 +1,11 @@
 import { App } from './app';
-import { modules } from './modules'; // Asli routes yahan se aate hain!
+import * as allModules from './modules'; // Saare routes ek sath utha liye!
 
-// Asli app ko saare routes ke sath initialize karein (Crash Fixed!)
-const appInstance: any = new App(modules);
+// 1. Saare exported routes ko automatically ek Array mein convert kar do
+const routesArray = Object.values(allModules);
+
+// 2. Asli app ko un saare routes ke sath initialize karo (Crash 100% Fixed!)
+const appInstance: any = new App(routesArray);
 const musicHonoApp = appInstance.fetch ? appInstance : (appInstance.app || appInstance.getApp());
 
 export default {
