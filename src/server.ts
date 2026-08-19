@@ -1,5 +1,10 @@
-import { app } from './app';
+import { App } from './app'; // Bade 'A' ke sath import (TypeScript error fixed!)
 
+// --- DYNAMIC APP INITIALIZER ---
+// Yeh automatically detect karega ki aapka music app kis format mein export hua hai
+const anyApp: any = App;
+const appInstance = typeof anyApp === 'function' ? new anyApp() : anyApp;
+const musicHonoApp = appInstance.fetch ? appInstance : (appInstance.app || appInstance.getApp());
 
 export default {
   async fetch(request: Request, env: any, ctx: any): Promise<Response> {
@@ -9,7 +14,7 @@ export default {
 
       // 1. Root route aur health check ko bina API Key ke access karne dein
       if (path === '/' || path === '/api/health') {
-        return await app.fetch(request, env, ctx);
+        return await musicHonoApp.fetch(request, env, ctx);
       }
 
       // 2. Sabhi /api/ routes par Security aur KV Check lagayein
@@ -64,15 +69,15 @@ export default {
         );
       }
 
-      // 5. Agar Security Check Pass ho gaya, toh request aapke ASLI Music App (Hono) par jayegi
-      return await app.fetch(request, env, ctx);
+      // 5. Agar Security Check Pass ho gaya, toh request aapke ASLI Music App par jayegi
+      return await musicHonoApp.fetch(request, env, ctx);
 
     } catch (error: any) {
-      // 6. AGAR KUCH BHI FAIL HUA TOH 1101 ERROR NAHI AAYEGA, EXACT REASON DIKHEGA!
+      // 6. AGAR KUCH BHI FAIL HUA TOH EXACT REASON DIKHEGA
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Worker Exception Caught (No 1101 Error)", 
+          error: "Worker Exception Caught", 
           details: error.message 
         }),
         { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
@@ -80,3 +85,4 @@ export default {
     }
   }
 };
+
