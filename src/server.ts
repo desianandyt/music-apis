@@ -1,9 +1,8 @@
-import { App } from './app'; // Bade 'A' ke sath import (TypeScript error fixed!)
+import { App } from './app';
+import { modules } from './modules'; // Asli routes yahan se aate hain!
 
-// --- DYNAMIC APP INITIALIZER ---
-// Yeh automatically detect karega ki aapka music app kis format mein export hua hai
-const anyApp: any = App;
-const appInstance = typeof anyApp === 'function' ? new anyApp() : anyApp;
+// Asli app ko saare routes ke sath initialize karein (Crash Fixed!)
+const appInstance: any = new App(modules);
 const musicHonoApp = appInstance.fetch ? appInstance : (appInstance.app || appInstance.getApp());
 
 export default {
@@ -85,4 +84,3 @@ export default {
     }
   }
 };
-
