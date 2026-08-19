@@ -1,10 +1,11 @@
 import { App } from './app';
-import * as allModules from './modules'; // Saare routes ek sath utha liye!
+import * as allModules from './modules'; 
 
-// 1. Saare exported routes ko automatically ek Array mein convert kar do
-const routesArray = Object.values(allModules);
+// YAHAN THI GADBAD! Humne classes bheji thi, jabki unko instantiate (new) karna tha.
+// Ab yeh automatically saare Controllers ko 'new' karke array bana dega.
+const routesArray = Object.values(allModules).map((RouteClass: any) => new RouteClass());
 
-// 2. Asli app ko un saare routes ke sath initialize karo (Crash 100% Fixed!)
+// Asli app ko un saare objects ke sath initialize karo (TypeScript Error 100% Fixed!)
 const appInstance: any = new App(routesArray);
 const musicHonoApp = appInstance.fetch ? appInstance : (appInstance.app || appInstance.getApp());
 
