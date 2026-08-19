@@ -1,4 +1,5 @@
-import app from './app';
+import { app } from './app';
+
 
 export default {
   async fetch(request: Request, env: any, ctx: any): Promise<Response> {
