@@ -1,15 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Added
-
-- Merge best-effort public InnerTube metadata results into the authenticated `/api/search/songs` endpoint alongside JioSaavn results.
-- Normalize YouTube video metadata with thumbnails, channel attribution, duration, view count, watch URL, and explicit `isDownloadable: false`/empty `downloadUrl` fields.
-- Keep YouTube provider failures isolated from existing JioSaavn routes with bounded inputs and request timeouts.
-- Filter common non-music categories such as reactions, reviews, tutorials, interviews, podcasts, news, gameplay, vlogs, and Shorts while retaining likely official audio, lyrics, music videos, albums, remixes, covers, and long-form query matches.
-- Keep YouTube playback metadata-only: clients receive an official `watchUrl`, an empty `downloadUrl`, and `isDownloadable: false`; direct media extraction is not performed.
-
 
 ## v0.1.0
 
@@ -130,3 +120,7 @@
 
 - Sumit Kolhe ([@sumitkolhe](http://github.com/sumitkolhe))
 
+
+## Unreleased — restore JioSaavn-only catalog
+
+Removed the YouTube/InnerTube provider, music filter, and combined-result behavior. The existing `/api/search/songs` endpoint now returns only normalized JioSaavn results again, while the `USER_KEYS` KV binding remains configured for API-key authentication.
