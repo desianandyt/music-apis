@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Merge best-effort public InnerTube metadata results into the authenticated `/api/search/songs` endpoint alongside JioSaavn results.
+- Normalize YouTube video metadata with thumbnails, channel attribution, duration, view count, watch URL, and explicit `isDownloadable: false`/empty `downloadUrl` fields.
+- Keep YouTube provider failures isolated from existing JioSaavn routes with bounded inputs and request timeouts.
+
 
 ## v0.1.0
 
