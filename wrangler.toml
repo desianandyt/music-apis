@@ -2,5 +2,9 @@ name = "music-apis"
 main = "./src/server.ts"
 compatibility_date = "2024-09-28"
 
+[[kv_namespaces]]
+binding = "USER_KEYS"
+id = "0e525f2ad846489da815783103064413"
+
 [observability]
 enabled = true
