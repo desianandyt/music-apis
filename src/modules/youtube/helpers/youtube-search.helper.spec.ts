@@ -29,3 +29,25 @@ describe('YouTube search normalization', () => {
     expect(mapVideoRenderer({ title: { simpleText: 'missing-id' } })).toBeNull()
   })
 })
+
+  it('filters common non-music video categories', () => {
+    expect(mapVideoRenderer({
+      videoId: 'reaction123',
+      title: { simpleText: 'Tum Hi Ho reaction and review' },
+      ownerText: { simpleText: 'Random Channel' },
+      lengthText: { simpleText: '8:10' }
+    }, 'tum hi ho')).toBeNull()
+  })
+
+  it('accepts a long query-matching track without requiring a download URL', () => {
+    const song = mapVideoRenderer({
+      videoId: 'song123',
+      title: { simpleText: 'Tum Hi Ho full song' },
+      ownerText: { simpleText: 'Music Channel' },
+      lengthText: { simpleText: '4:20' }
+    }, 'tum hi ho')
+
+    expect(song?.source).toBe('youtube')
+    expect(song?.downloadUrl).toEqual([])
+    expect(song?.isDownloadable).toBe(false)
+  })

@@ -16,6 +16,10 @@ interface TextRun {
   text?: string
 }
 
+interface Badge {
+  metadataBadgeRenderer?: { label?: string }
+}
+
 interface VideoRenderer {
   videoId?: string
   title?: { runs?: TextRun[]; simpleText?: string }
@@ -23,6 +27,8 @@ interface VideoRenderer {
   lengthText?: { simpleText?: string }
   viewCountText?: { simpleText?: string }
   publishedTimeText?: { simpleText?: string }
+  badges?: Badge[]
+  ownerBadges?: Badge[]
   thumbnail?: { thumbnails?: Array<{ url?: string }> }
 }
 
@@ -92,6 +98,26 @@ const getInnertubeConfig = async (): Promise<YouTubeClientConfig> => {
   }
 }
 
+const MUSIC_TITLE_PATTERN = /\b(official\s+(?:audio|music\s+video|video)|music|song|lyrics?|audio|soundtrack|ost|album|remix|cover|acoustic|karaoke|concert|live)\b/i
+const NON_MUSIC_TITLE_PATTERN = /\b(reaction|review|tutorial|interview|podcast|news|gameplay|walkthrough|vlog|explained|shorts?)\b/i
+
+const badgeText = (badges: Badge[] = []): string => badges
+  .map((badge) => badge.metadataBadgeRenderer?.label || '')
+  .join(' ')
+  .trim()
+
+const isLikelyMusicVideo = (renderer: VideoRenderer, query: string, duration: number | null): boolean => {
+  const title = textValue(renderer.title)
+  const metadata = `${title} ${badgeText(renderer.badges)} ${badgeText(renderer.ownerBadges)}`
+  if (NON_MUSIC_TITLE_PATTERN.test(title) || /\bshorts\b/i.test(title)) return false
+  if (duration !== null && duration < 45) return false
+  if (MUSIC_TITLE_PATTERN.test(metadata)) return true
+
+  const queryTokens = query.toLowerCase().split(/\s+/).filter((token) => token.length >= 3)
+  const matchingTokens = queryTokens.filter((token) => title.toLowerCase().includes(token)).length
+  return matchingTokens >= Math.max(1, Math.ceil(queryTokens.length / 2)) && (duration === null || duration >= 90)
+}
+
 const createArtist = (name: string) => ({
   id: `youtube-artist:${encodeURIComponent(name.toLowerCase())}`,
   name,
@@ -101,7 +127,7 @@ const createArtist = (name: string) => ({
   url: `https://www.youtube.com/results?search_query=${encodeURIComponent(name)}`
 })
 
-export const mapVideoRenderer = (renderer: VideoRenderer): YouTubeSong | null => {
+export const mapVideoRenderer = (renderer: VideoRenderer, query = ''): YouTubeSong | null => {
   const videoId = renderer.videoId?.trim()
   const title = textValue(renderer.title)
   if (!videoId || !title) return null
@@ -109,6 +135,7 @@ export const mapVideoRenderer = (renderer: VideoRenderer): YouTubeSong | null =>
   const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
   const thumbnail = renderer.thumbnail?.thumbnails?.at(-1)?.url || `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`
   const duration = parseDuration(textValue(renderer.lengthText))
+  if (!isLikelyMusicVideo(renderer, query, duration)) return null
   const artist = createArtist(artistName)
   const published = textValue(renderer.publishedTimeText)
 
@@ -163,7 +190,7 @@ export const searchYouTube = async (query: string, page = 0, limit = 10): Promis
     if (!response.ok) throw new Error(`YouTube search returned ${response.status}`)
     const payload = await response.json()
     const results = findVideoRenderers(payload)
-      .map(mapVideoRenderer)
+      .map((renderer) => mapVideoRenderer(renderer, normalizedQuery))
       .filter((song): song is YouTubeSong => Boolean(song))
     const start = normalizedPage * normalizedLimit
     return {
