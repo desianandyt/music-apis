@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
+import { importExternalPlaylist } from '#modules/playlists/helpers'
 import { PlaylistModel } from '#modules/playlists/models'
 import { PlaylistService } from '#modules/playlists/services'
 import type { Routes } from '#common/types'
@@ -109,5 +110,49 @@ export class PlaylistController implements Routes {
         return ctx.json({ success: true, data: response })
       }
     )
+
+    this.controller.post('/playlists/import', async (ctx) => {
+      try {
+        const body = await ctx.req.json<{ url?: string }>()
+        const url = body?.url?.trim()
+
+        if (!url) {
+          return ctx.json({ success: false, message: 'Please provide a valid playlist link' }, 400)
+        }
+
+        if (url.toLowerCase().includes('jiosaavn.com') || url.toLowerCase().includes('saavn.com')) {
+          const parsedUrl = new URL(url)
+          const token = parsedUrl.pathname.split('/').findLast((segment) => segment.length > 0)
+          if (!token) return ctx.json({ success: false, message: 'Could not extract the JioSaavn playlist ID' }, 400)
+
+          const playlist = await this.playlistService.getPlaylistByLink({ token, page: 0, limit: 100 })
+          const tracks = playlist.songs || []
+          return ctx.json({
+            success: true,
+            data: {
+              provider: 'jiosaavn',
+              name: playlist.name,
+              description: playlist.description || 'Imported from JioSaavn',
+              coverUrl: playlist.image?.slice(-1)[0]?.url || '',
+              tracks,
+              totalTracks: tracks.length
+            }
+          })
+        }
+
+        const imported = await importExternalPlaylist(url)
+        return ctx.json({ success: true, data: imported })
+      } catch (error) {
+        console.error('Playlist import failed:', error)
+        return ctx.json(
+          {
+            success: false,
+            message:
+              error instanceof Error ? error.message : 'Failed to import playlist. Please check the URL and try again.'
+          },
+          502
+        )
+      }
+    })
   }
 }
