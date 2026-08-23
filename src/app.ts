@@ -149,42 +149,6 @@ export class App {
     })
 
     this.app.route('/', Home)
-
-    // 🔥 YOUTUBE STREAM ROUTE (AD-FREE AUDIO) 🔥
-    this.app.get('/api/songs/stream/:id', async (c) => {
-      try {
-        const videoId = c.req.param('id')
-        if (!videoId) {
-          return c.json({ success: false, message: 'Video ID missing hai!' }, 400)
-        }
-
-        // Piped API se direct ad-free link nikalna
-        const response = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`)
-        const data = await response.json()
-
-        if (data.error || !data.audioStreams) {
-          return c.json({ success: false, message: 'Stream nahi mila!' }, 404)
-        }
-
-        const audioStreams = data.audioStreams
-        // Best quality m4a ya mp4 audio stream filter karna
-        const bestStream = audioStreams.find((s: any) => 
-          s.mimeType.includes('audio/mp4') || s.mimeType.includes('m4a')
-        ) || audioStreams[0]
-
-        return c.json({
-          success: true,
-          data: {
-            streamUrl: bestStream.url,
-            quality: bestStream.quality,
-            bitrate: bestStream.bitrate
-          }
-        })
-      } catch (error) {
-        console.error("Stream Error:", error)
-        return c.json({ success: false, message: 'Server mein error aa gaya!' }, 500)
-      }
-    })
   }
 
   private initializeGlobalMiddlewares() {
@@ -317,4 +281,4 @@ export class App {
   public getApp() {
     return this.app
   }
-      }
+}
