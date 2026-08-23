@@ -1,5 +1,8 @@
+packages:
+  - "."
+
 allowBuilds:
-  esbuild: set this to true or false
-  simple-git-hooks: set this to true or false
-  unrs-resolver: set this to true or false
-  workerd: set this to true or false
+  esbuild: true
+  simple-git-hooks: true
+  unrs-resolver: true
+  workerd: true
