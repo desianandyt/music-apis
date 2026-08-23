@@ -190,44 +190,4 @@ export class SongController implements Routes {
     )
   }
 }
-// Naya function: YouTube (Piped API) se direct ad-free audio link nikalne ke liye
-export const getSongStream = async (req: any, res: any) => {
-  try {
-    const videoId = req.params.id; 
-    
-    if (!videoId) {
-      return res.status(400).json({ success: false, message: 'Video ID missing!' });
-    }
-
-    // Piped API hit kar rahe hain IP block se bachne ke liye
-    const response = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
-    const data = await response.json();
-
-    if (data.error) {
-      return res.status(404).json({ success: false, message: 'Stream nahi mila!' });
-    }
-
-    // Sirf Audio streams nikal rahe hain
-    const audioStreams = data.audioStreams;
-    
-    // Best quality m4a ya mp4a stream filter kar rahe hain
-    const bestStream = audioStreams.find((s: any) => 
-      s.mimeType.includes('audio/mp4') || s.mimeType.includes('m4a')
-    ) || audioStreams[0];
-
-    // App ko seedha raw link bhej do
-    return res.json({
-      success: true,
-      data: {
-        streamUrl: bestStream.url,
-        quality: bestStream.quality,
-        bitrate: bestStream.bitrate
-      }
-    });
-
-  } catch (error) {
-    console.error("Stream Error:", error);
-    return res.status(500).json({ success: false, message: 'Server error!' });
-  }
-};
 
