@@ -26,34 +26,52 @@ export class StreamController {
       }),
       async (ctx) => {
         const { id } = ctx.req.valid('param')
-        try {
-          // Piped API se direct audio link fetch karna
-          const response = await fetch(`https://pipedapi.kavin.rocks/streams/${id}`)
-          const data: any = await response.json()
 
-          if (data.error) {
-            return ctx.json({ success: false, message: data.error }, 400)
-          }
+        // Multiple Public Piped API instances (Backup system)
+        const pipedInstances = [
+          'https://pipedapi.kavin.rocks',
+          'https://pipedapi.projectsegfau.lt',
+          'https://pipedapi.libre.tube'
+        ]
 
-          // Sabse best audio/mp4 (m4a) stream nikalna
-          const audioStreams = data.audioStreams || []
-          const bestStream = audioStreams.find((s: any) => s.mimeType.includes('audio/mp4')) || audioStreams[0]
+        let data: any = null
 
-          if (!bestStream) {
-            return ctx.json({ success: false, message: 'No audio streams found' }, 404)
-          }
-
-          return ctx.json({
-            success: true,
-            data: {
-              streamUrl: bestStream.url,
-              mimeType: bestStream.mimeType,
-              bitrate: bestStream.bitrate
+        // Ek-ek karke sabhi instances par try karenge jab tak data na mil jaye
+        for (const instance of pipedInstances) {
+          try {
+            const response = await fetch(`${instance}/streams/${id}`)
+            if (response.ok) {
+              const json: any = await response.json()
+              if (json && !json.error) {
+                data = json
+                break // Sahi data milte hi loop rok do
+              }
             }
-          })
-        } catch (error) {
-          return ctx.json({ success: false, message: 'Failed to fetch stream from YouTube bypass' }, 500)
+          } catch (e) {
+            continue // Agar ek fail ho, toh agle par jao
+          }
         }
+
+        if (!data) {
+          return ctx.json({ success: false, message: 'Failed to fetch stream from all YouTube bypass instances' }, 500)
+        }
+
+        // Sabse best audio/mp4 (m4a) stream nikalna
+        const audioStreams = data.audioStreams || []
+        const bestStream = audioStreams.find((s: any) => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0]
+
+        if (!bestStream) {
+          return ctx.json({ success: false, message: 'No audio streams found' }, 404)
+        }
+
+        return ctx.json({
+          success: true,
+          data: {
+            streamUrl: bestStream.url,
+            mimeType: bestStream.mimeType,
+            bitrate: bestStream.bitrate
+          }
+        })
       }
     )
   }
