@@ -27,51 +27,81 @@ export class StreamController {
       async (ctx) => {
         const { id } = ctx.req.valid('param')
 
-        // Multiple Public Piped API instances (Backup system)
-        const pipedInstances = [
-          'https://pipedapi.kavin.rocks',
-          'https://pipedapi.projectsegfau.lt',
-          'https://pipedapi.libre.tube'
-        ]
+        try {
+          // YouTube InnerTube Web Client Payload (Direct & Reliable)
+          const ytResponse = await fetch(`https://www.youtube.com/youtubei/v1/player?key=AIzaSyA...`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            },
+            body: JSON.stringify({
+              context: {
+                client: {
+                  clientName: 'WEB',
+                  clientVersion: '2.20240101.01.00',
+                  platform: 'DESKTOP',
+                  hl: 'en',
+                  gl: 'US'
+                }
+              },
+              videoId: id
+            })
+          })
 
-        let data: any = null
-
-        // Ek-ek karke sabhi instances par try karenge jab tak data na mil jaye
-        for (const instance of pipedInstances) {
-          try {
-            const response = await fetch(`${instance}/streams/${id}`)
-            if (response.ok) {
-              const json: any = await response.json()
-              if (json && !json.error) {
-                data = json
-                break // Sahi data milte hi loop rok do
-              }
+          // Agar YouTube API key parameter ki wajah se block kare, toh hum ek aur aasaan alternative fallback use karenge: Cobalt ya Piped ka official stable endpoint
+          if (!ytResponse.ok) {
+            // Fallback to a stable public redirect/json extractor
+            const fallbackRes = await fetch(`https://co.wuk.sh/api/json`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                url: `https://www.youtube.com/watch?v=${id}`,
+                isAudioOnly: true
+              })
+            })
+            
+            const fallbackData: any = await fallbackRes.json()
+            if (fallbackData && fallbackData.url) {
+              return ctx.json({
+                success: true,
+                data: {
+                  streamUrl: fallbackData.url,
+                  mimeType: 'audio/mp4',
+                  bitrate: 128000
+                }
+              })
             }
-          } catch (e) {
-            continue // Agar ek fail ho, toh agle par jao
+            throw new Error('Fallback extractor failed')
           }
-        }
 
-        if (!data) {
-          return ctx.json({ success: false, message: 'Failed to fetch stream from all YouTube bypass instances' }, 500)
-        }
+          const ytData: any = await ytResponse.json()
+          const adaptiveFormats = ytData.streamingData?.adaptiveFormats || []
+          
+          // Sirf audio formats filter karna
+          const audioStream = adaptiveFormats.find((f: any) => 
+            f.mimeType && f.mimeType.includes('audio/mp4')
+          ) || adaptiveFormats.find((f: any) => f.mimeType && f.mimeType.includes('audio/'))
 
-        // Sabse best audio/mp4 (m4a) stream nikalna
-        const audioStreams = data.audioStreams || []
-        const bestStream = audioStreams.find((s: any) => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0]
-
-        if (!bestStream) {
-          return ctx.json({ success: false, message: 'No audio streams found' }, 404)
-        }
-
-        return ctx.json({
-          success: true,
-          data: {
-            streamUrl: bestStream.url,
-            mimeType: bestStream.mimeType,
-            bitrate: bestStream.bitrate
+          if (!audioStream || !audioStream.url) {
+            return ctx.json({ success: false, message: 'No direct audio stream found' }, 404)
           }
-        })
+
+          return ctx.json({
+            success: true,
+            data: {
+              streamUrl: audioStream.url,
+              mimeType: audioStream.mimeType,
+              bitrate: audioStream.bitrate || 128000
+            }
+          })
+
+        } catch (error: any) {
+          return ctx.json({ success: false, message: 'Stream extraction error: ' + error.message }, 500)
+        }
       }
     )
   }
