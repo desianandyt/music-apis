@@ -27,81 +27,62 @@ export class StreamController {
       async (ctx) => {
         const { id } = ctx.req.valid('param')
 
-        try {
-          // YouTube InnerTube Web Client Payload (Direct & Reliable)
-          const ytResponse = await fetch(`https://www.youtube.com/youtubei/v1/player?key=AIzaSyA...`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            body: JSON.stringify({
-              context: {
-                client: {
-                  clientName: 'WEB',
-                  clientVersion: '2.20240101.01.00',
-                  platform: 'DESKTOP',
-                  hl: 'en',
-                  gl: 'US'
-                }
-              },
-              videoId: id
-            })
-          })
+        // Public Invidious API instances (Ye Cloudflare workers ke sath acchha kaam karte hain)
+        const invidiousInstances = [
+          'https://vid.puffyan.us',
+          'https://invidious.projectsegfau.lt',
+          'https://inv.nadeko.net'
+        ]
 
-          // Agar YouTube API key parameter ki wajah se block kare, toh hum ek aur aasaan alternative fallback use karenge: Cobalt ya Piped ka official stable endpoint
-          if (!ytResponse.ok) {
-            // Fallback to a stable public redirect/json extractor
-            const fallbackRes = await fetch(`https://co.wuk.sh/api/json`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-              },
-              body: JSON.stringify({
-                url: `https://www.youtube.com/watch?v=${id}`,
-                isAudioOnly: true
-              })
+        let streamUrl = ''
+        let detailedError = ''
+
+        for (const instance of invidiousInstances) {
+          try {
+            const res = await fetch(`${instance}/api/v1/videos/${id}`, {
+              headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' 
+              }
             })
             
-            const fallbackData: any = await fallbackRes.json()
-            if (fallbackData && fallbackData.url) {
-              return ctx.json({
-                success: true,
-                data: {
-                  streamUrl: fallbackData.url,
-                  mimeType: 'audio/mp4',
-                  bitrate: 128000
-                }
-              })
+            if (res.ok) {
+              const json: any = await res.json()
+              const adaptiveFormats = json.adaptiveFormats || []
+              
+              // Audio-only format dhundhna (m4a ya webm)
+              const audioFormat = adaptiveFormats.find((f: any) => 
+                f.type && f.type.includes('audio/') && f.url
+              ) || adaptiveFormats[0]
+
+              if (audioFormat && audioFormat.url) {
+                streamUrl = audioFormat.url
+                break
+              }
+            } else {
+              detailedError = `Instance ${instance} returned status ${res.status}`
             }
-            throw new Error('Fallback extractor failed')
+          } catch (err: any) {
+            detailedError = err.message
+            continue
           }
-
-          const ytData: any = await ytResponse.json()
-          const adaptiveFormats = ytData.streamingData?.adaptiveFormats || []
-          
-          // Sirf audio formats filter karna
-          const audioStream = adaptiveFormats.find((f: any) => 
-            f.mimeType && f.mimeType.includes('audio/mp4')
-          ) || adaptiveFormats.find((f: any) => f.mimeType && f.mimeType.includes('audio/'))
-
-          if (!audioStream || !audioStream.url) {
-            return ctx.json({ success: false, message: 'No direct audio stream found' }, 404)
-          }
-
-          return ctx.json({
-            success: true,
-            data: {
-              streamUrl: audioStream.url,
-              mimeType: audioStream.mimeType,
-              bitrate: audioStream.bitrate || 128000
-            }
-          })
-
-        } catch (error: any) {
-          return ctx.json({ success: false, message: 'Stream extraction error: ' + error.message }, 500)
         }
+
+        if (!streamUrl) {
+          return ctx.json({ 
+            success: false, 
+            message: 'Failed to extract stream from all Invidious instances', 
+            debug: detailedError 
+          }, 500)
+        }
+
+        return ctx.json({
+          success: true,
+          data: {
+            streamUrl: streamUrl,
+            mimeType: 'audio/mp4',
+            bitrate: 128000
+          }
+        })
       }
     )
   }
